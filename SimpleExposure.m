@@ -41,7 +41,7 @@ STIM.jitter = [2 3 4];
 
 %% Find & load in pics
 %find the image directory by figuring out where the .m is kept
-[mdir,~,~] = fileparts(which('SimpleExposure.m');
+[mdir,~,~] = fileparts(which('SimpleExposure.m'));
 
 [ratedir,~,~] = fileparts(which('PicRatings_U4ED.m'));
 picratefolder = fullfile(ratedir,'Results');
@@ -52,6 +52,8 @@ try
 catch
     error('Could not find and/or open the folder that contains the image ratings.');
 end
+
+
 
 filen = sprintf('PicRate_%d.mat',ID);
 try
@@ -77,12 +79,12 @@ cd(imgdir);
 
 PICS =struct;
 
-    PICS.in.hi = struct('name',{p.PicRating_U4ED(1:80).name}');
-    PICS.in.neut = dir('water*');
+PICS.in.hi = struct('name',{p.PicRating_U4ED(1:80).name}');
+neutpics = dir('water*');
 
 %Check if pictures are present. If not, throw error.
 %Could be updated to search computer to look for pics...
-if isempty(PICS.in.neut) || isempty(PICS.in.hi) %|| isempty(PICS.in.neut)
+if isempty(neutpics) || isempty(PICS.in.hi) %|| isempty(neutpics)
     error('Could not find pics. Please ensure pictures are found in a folder names IMAGES within the folder containing the .m task file.');
 end
 
@@ -90,10 +92,13 @@ end
 SimpExp = struct;
 
 %1 = food, 0 = water
-pictype = [ones(length(PICS.in.hi),1); zeros(20,1)];
+% pictype = [ones(length(PICS.in.hi),1); zeros(20,1)];
+pictype = [ones(80,1); zeros(20,1)];
 
 %Make long list of randomized #s to represent each pic
-piclist = [randperm(length(PICS.in.hi)); randperm(length(PICS.in.neut))];
+% piclist = [randperm(length(PICS.in.hi))'; randperm(length(neutpics))'];
+piclist = [randperm(80)'; randperm(20)'];
+
 
 %Concatenate these into a long list of trial types.
 trial_types = [pictype piclist];
@@ -106,9 +111,9 @@ jitter = BalanceTrials(STIM.totes,1,STIM.jitter);
          tc = (x-1)*STIM.trials + y;
          SimpExp.data(tc).pictype = shuffled(tc,1);
          if shuffled(tc,1) == 1
-            SimpExp.data(tc).picname = PICS.in.hi(shuffled(tc,2));
+            SimpExp.data(tc).picname = PICS.in.hi(shuffled(tc,2)).name;
          elseif shuffled(tc,1) == 0
-             SimpExp.data(tc).picname = PICS.in.neut(shuffled(tc,2)).name;
+             SimpExp.data(tc).picname = neutpics(shuffled(tc,2)).name;
          end
          SimpExp.data(tc).jitter = jitter(tc);
          SimpExp.data(tc).fix_onset = NaN;
@@ -179,16 +184,16 @@ KbName('UnifyKeyNames');
 
 for block = 1:STIM.blocks
     for trial = 1:STIM.trials
-        tcounter = (x-1)*STIM.trials + y;
-        tpx = imread(getfield(SimpExp.data(tcounter).picname));
+        tcounter = (block-1)*STIM.trials + trial;
+        tpx = imread(getfield(SimpExp,'data',{tcounter},'picname'));
         texture = Screen('MakeTexture',w,tpx);
         
         DrawFormattedText(w,'+','center','center',COLORS.WHITE);
-        Screen('Flip',w);
-        WaitSecs(SimpExp.data(tc).jitter);
+        SimpExp.data(tcounter).fix_onset = Screen('Flip',w);
+        WaitSecs(SimpExp.data(tcounter).jitter);
         
         Screen('DrawTexture',w,texture);
-        Screen('Flip',w);
+        SimpExp.data(tcounter).pic_onset = Screen('Flip',w);
         WaitSecs(STIM.trialdur);
         
     end
@@ -204,10 +209,9 @@ end
 
 %Export GNG to text and save with subject number.
 %find the mfilesdir by figuring out where show_faces.m is kept
-[mfilesdir,~,~] = fileparts(which('DotProbe_Training.m'));
 
 %get the parent directory, which is one level up from mfilesdir
-savedir = [mfilesdir filesep 'Results' filesep];
+savedir = [mdir filesep 'Results' filesep];
 
 if exist(savedir,'dir') == 0;
     % If savedir (the directory to save files in) does not exist, make it.
@@ -222,142 +226,10 @@ catch
     error('Although data was (most likely) collected, file was not properly saved. 1. Right click on variable in right-hand side of screen. 2. Save as SST_#_#.mat where first # is participant ID and second is session #. If you are still unsure what to do, contact your boss, Kim Martin, or Erik Knight (elk@uoregon.edu).')
 end
 
-DrawFormattedText(w,'Thank you for participating\n in the Dot Probe Task!','center','center',COLORS.WHITE);
+DrawFormattedText(w,'That concludes this task.','center','center',COLORS.WHITE);
 Screen('Flip', w);
 WaitSecs(10);
-
-%Clear everything except data structure
-clearvar -except SimpExp
 
 sca
 
 end
-
-%%
-function [trial_rt, correct] = DoDotProbeTraining(trial,block,varargin)
-
-global w STIM PICS COLORS SimpExp KEY pahandle
-
-correct = -999;                         %Set/reset "correct" to -999 at start of every trial
-lr = SimpExp.var.lr(trial,block);           %Bring in L/R location for probe; 1 = L, 2 = R
-
-if lr == 1;                             %set up response keys for probe (& not picture)
-    corr_respkey = KEY.left;
-    incorr_respkey = KEY.right;
-    notlr = 2;
-else
-    corr_respkey = KEY.right;
-    incorr_respkey = KEY.left;
-    notlr = 1;
-end
-
-%Display fixation for 500 ms
-DrawFormattedText(w,'+','center','center',COLORS.WHITE);
-Screen('Flip',w);
-WaitSecs(.5);                              %Jitter this for fMRI purposes.
-
-if SimpExp.var.cprobe(trial,block)== 1;
-    %If this is a counter-probe trial, draw hi cal food where probe will appear.
-    Screen('DrawTexture',w,PICS.out(trial).texture_lo,[],STIM.img(notlr,:));    
-    Screen('DrawTexture',w,PICS.out(trial).texture_hi,[],STIM.img(lr,:));
-else
-    %Otherwise, draw lo cal food where probe will appear.
-    Screen('DrawTexture',w,PICS.out(trial).texture_lo,[],STIM.img(lr,:));
-    Screen('DrawTexture',w,PICS.out(trial).texture_hi,[],STIM.img(notlr,:));
-end
-
-    Screen('Flip',w);
-    WaitSecs(.5);                   %Display pics for 500 ms before dot probe 
-    
-    Screen('FillOval',w,COLORS.WHITE,STIM.probe(lr,:));
-    RT_start = Screen('Flip',w);
-    if SimpExp.var.signal(trial, block) == 1;
-        PsychPortAudio('Start', pahandle, 1);
-        % XXX: Delay between probe & signal onset?
-    end
-    telap = GetSecs() - RT_start;
-
-
-    while telap <= (STIM.trialdur - .500); %XXX: What is full trial duration?
-        telap = GetSecs() - RT_start;
-        [Down, ~, Code] = KbCheck();            %wait for key to be pressed
-        if Down == 1 
-            if any(find(Code) == corr_respkey);
-                trial_rt = GetSecs() - RT_start;
-            
-                if SimpExp.var.signal(trial,block) == 1;        %This is a no-go signal round. Throw incorrect X.
-                    DrawFormattedText(w,'X','center','center',COLORS.RED);
-                    Screen('Flip',w);
-                    correct = 0;
-                    WaitSecs(.5);
-
-                else                                        %If no signal + Press, move on to next round.
-                    Screen('Flip',w);                        %'Flip' in order to clear buffer; next flip (in main script) flips to black screen.
-                    correct = 1;
-                
-                end
-            break    
-            
-            elseif any(find(Code) == incorr_respkey) %The wrong key was pressed. Throw X regardless of Go/No Go
-                trial_rt = GetSecs() - RT_start;
-                
-                DrawFormattedText(w,'X','center','center',COLORS.RED);
-                Screen('Flip',w);
-                correct = 0;
-                WaitSecs(.5);
-                break
-            else
-                FlushEvents();
-            end
-        end
-        
-        
-    end
-    
-    if correct == -999;
-%     Screen('DrawTexture',w,PICS.out(trial).texture,[],STIM.img(lr,:));
-        
-        if SimpExp.var.signal(trial,block) == 1;    %NoGo Trial + Correct no press. Do nothing, move to inter-trial
-            Screen('Flip',w);                   %'Flip' in order to clear buffer; next flip (in main script) flips to black screen.
-            correct = 1;
-        else                                    %Incorrect no press. Show "X" for .5 sec.
-            DrawFormattedText(w,'X','center','center',COLORS.RED);
-            Screen('Flip',w);
-            correct = 0;
-            WaitSecs(.5);
-        end
-        trial_rt = -999;                        %No press = no RT
-    end
-    
-
-FlushEvents();
-end
-
-%%
-function DrawPics4Block(block,varargin)
-
-global PICS SimpExp w STIM
-
-    for j = 1:STIM.trials;
-        %Get pic # for given trial's hi & low cal food
-        pic_hi = SimpExp.var.picnum_hi(j,block);
-        pic_lo = SimpExp.var.picnum_lo(j,block);
-        PICS.out(j).raw_hi = imread(getfield(PICS,'in','hi',{pic_hi},'name'));
-        PICS.out(j).raw_lo = imread(getfield(PICS,'in','lo',{pic_lo},'name'));
-        PICS.out(j).texture_hi = Screen('MakeTexture',w,PICS.out(j).raw_hi);
-        PICS.out(j).texture_lo = Screen('MakeTexture',w,PICS.out(j).raw_lo);
-        
-%         switch SimpExp.var.trial_type(j,block)
-%             case {1}
-%                 PICS.out(j).raw = imread(getfield(PICS,'in','go',{pic},'name'));
-% %                 %I think this is is covered outside of switch/case
-% %                 PICS.out(j).texture = Screen('MakeTexture',w,PICS.out(j).raw);
-%             case {2}
-%                 PICS.out(j).raw = imread(getfield(PICS,'in','no',{pic},'name'));
-%             case {3}
-%                 PICS.out(j).raw = imread(getfield(PICS,'in','neut',{pic},'name'));
-%         end
-    end
-%end
-end
-
