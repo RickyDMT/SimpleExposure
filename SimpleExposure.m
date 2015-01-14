@@ -32,8 +32,8 @@ COLORS.YELLOW = [255 255 0];
 COLORS.rect = COLORS.GREEN;
 
 STIM = struct;
-STIM.blocks = 5;
-STIM.trials = 20;
+STIM.blocks = 6;
+STIM.trials = 10;
 STIM.totes = STIM.blocks*STIM.trials;
 STIM.trialdur = 5;
 STIM.jitter = [2 3 4];
@@ -55,17 +55,35 @@ end
 
 
 
-filen = sprintf('PicRate_%d.mat',ID);
+filen = sprintf('PicRateU_%d.mat',ID);
 try
     p = open(filen);
 catch
-    warning('Could not find and/or open the rating file.');
+    warning('Could not find and/or open the U rating file.');
     commandwindow;
     randopics = input('Would you like to continue with a random selection of images? [1 = Yes, 0 = No]');
     if randopics == 1
         cd(imgdir)
         p = struct;
-        p.PicRating_U4ED = dir('Unhealthy*');
+        p.PicRating_U4ED = dir('Unhealthy*'); 
+
+    else
+        error('Task cannot proceed without images. Contact Erik (elk@uoregon.edu) if you have continued problems.')
+    end
+    
+end
+
+filen = sprintf('PicRateMod_%d.mat',ID);
+try
+    p = open(filen);
+catch
+    warning('Could not find and/or open the Mod rating file.');
+    commandwindow;
+    randopics = input('Would you like to continue with a random selection of images? [1 = Yes, 0 = No]');
+    if randopics == 1
+        cd(imgdir)
+        p = struct;
+        p.PicRating_U4ED = dir('*_T*'); 
 
     else
         error('Task cannot proceed without images. Contact Erik (elk@uoregon.edu) if you have continued problems.')
