@@ -1,7 +1,7 @@
-function PicRatings_U4ED(varargin)
+function PicRatings_Mod4ED(varargin)
 % Rate all images, choose top X picsn    
 
-global wRect w XCENTER rects mids COLORS KEYS PicRating_U4ED
+global wRect w XCENTER rects mids COLORS KEYS PicRating_Mod4ED
 
 prompt={'SUBJECT ID' 'fMRI? (1 = Y, 0 = N)'};
 defAns={'4444' '0'};
@@ -47,9 +47,7 @@ KEYS.trigger = 52;
 
 
 PICS =struct;
-    %PICS.in.Un = dir('Binge*');
-
-    PICS.in.Un = dir('U*');
+    PICS.in.Un = dir('*_T*');
     
     if isempty(PICS.in.Un);
         error('Could not find pics! Make sure a folder exists called "Pics" with all the appropriate images contained therein.')
@@ -61,11 +59,11 @@ PICS =struct;
 
 jitter = BalanceTrials(length(picnames),1,[1 2 3]);
 
-PicRating_U4ED = struct('filename',picnames,'Rate_App',0,'Jitter',[],'FixOnset',[],'PicOnset',[],'RatingOnset',[],'RT',[]); %,'Rate_Crave',0);
+PicRating_Mod4ED = struct('filename',picnames,'Rate_App',0,'Jitter',[],'FixOnset',[],'PicOnset',[],'RatingOnset',[],'RT',[]); %,'Rate_Crave',0);
 
-for hhh = 1:length(PicRating_U4ED);
+for hhh = 1:length(PicRating_Mod4ED);
     
-    PicRating_U4ED(hhh).Jitter = jitter(hhh);
+    PicRating_Mod4ED(hhh).Jitter = jitter(hhh);
 end
 
 
@@ -136,11 +134,11 @@ Screen('TextSize',w,35);
 
 %% Dat Grid
 [rects,mids] = DrawRectsGrid();
-verbage = 'How much would you like to binge on this food?'; %'How much do you crave this food?'};
+verbage = 'How attractive is this person?'; %'How much do you crave this food?'};
 
 %% Intro
 
-DrawFormattedText(w,'We are going to show you some pictures of food and have you rate how much you would like to binge on each food.\n\n You will use a scale from 1 to 10, where 1 is "Not at all" and 10 is "Extremely."\n\nPress any key to continue.','center','center',COLORS.WHITE,50,[],[],1.5);
+DrawFormattedText(w,'We are going to show you some pictures of people and have you rate how attractive each person is.\n\n You will use a scale from 1 to 10, where 1 is "Not at all attractive" and 10 is "Extremely attractive."\n\nPress any key to continue.','center','center',COLORS.WHITE,50,[],[],1.5);
 Screen('Flip',w);
 KbWait([],3);
 
@@ -165,36 +163,36 @@ KbWait([],3);
 WaitSecs(1);
 
 
-for x = 1:20:length(PicRating_U4ED);  %UPDATE TO LENGTH OF GO PICS
+for x = 1:20:length(PicRating_Mod4ED);  %UPDATE TO LENGTH OF GO PICS
     for y = 1:19;
         xy = x+y;
-        if xy > length(PicRating_U4ED)
+        if xy > length(PicRating_Mod4ED)
             break
         end
         
         DrawFormattedText(w,'+','center','center',COLORS.WHITE);
         fixon = Screen('Flip',w);
-        PicRating_U4ED(xy).FixOnset = fixon - scan_sec;
-        WaitSecs(PicRating_U4ED(xy).Jitter);
+        PicRating_Mod4ED(xy).FixOnset = fixon - scan_sec;
+        WaitSecs(PicRating_Mod4ED(xy).Jitter);
         
-        tp = imread(getfield(PicRating_U4ED,{xy},'filename'));
+        tp = imread(getfield(PicRating_Mod4ED,{xy},'filename'));
         tpx = Screen('MakeTexture',w,tp);          
         Screen('DrawTexture',w,tpx);
         picon = Screen('Flip',w);
-        PicRating_U4ED(xy).PicOnset = picon - scan_sec;
+        PicRating_Mod4ED(xy).PicOnset = picon - scan_sec;
         WaitSecs(5);
         
         Screen('DrawTexture',w,tpx);
         drawRatings([],w);
         DrawFormattedText(w,verbage,'center',(wRect(4)*.75),COLORS.BLUE);
         rateon = Screen('Flip',w);
-        PicRating_U4ED(xy).RatingOnset = rateon - scan_sec;
+        PicRating_Mod4ED(xy).RatingOnset = rateon - scan_sec;
             
         FlushEvents();
             while 1
                 [keyisdown, rt, keycode] = KbCheck();
                 if (keyisdown==1 && any(keycode(KEYS.all)))
-                    PicRating_U4ED(xy).RT = rt - rateon;
+                    PicRating_Mod4ED(xy).RT = rt - rateon;
                     
                     rating = KbName(find(keycode));
                     rating = str2double(rating(1));
@@ -212,7 +210,7 @@ for x = 1:20:length(PicRating_U4ED);  %UPDATE TO LENGTH OF GO PICS
             if rating == 0; %Zero key is used for 10. Thus check and correct for when they press 0.
                 rating = 10;
             end
-           PicRating_U4ED(xy).Rate_App = rating;
+           PicRating_Mod4ED(xy).Rate_App = rating;
            Screen('Flip',w);
            FlushEvents();
            WaitSecs(.25);
@@ -232,17 +230,17 @@ WaitSecs(.5);
 %% Sort & Save List of Foods.
 %Sort by top appetizing ratings for each set.
 fields = {'name' 'rating' 'jitter' 'FixOnset' 'PicOnset' 'RatingOnset' 'RT'};
-presort = struct2cell(PicRating_U4ED)';
+presort = struct2cell(PicRating_Mod4ED)';
 postsort = sortrows(presort,-2);    %Sort descending by column 2
-PicRating_U4ED = cell2struct(postsort,fields,2);
+PicRating_Mod4ED = cell2struct(postsort,fields,2);
 
 savedir = [mfilesdir filesep 'Results'];
 
-savefilename = sprintf('PicRate_%d.mat',ID);
+savefilename = sprintf('PicRateMod_%d.mat',ID);
 savefile = fullfile(savedir,savefilename);
 
 try
-    save(savefile,'PicRating_U4ED'); 
+    save(savefile,'PicRating_Mod4ED'); 
 catch
     error('Although data was (most likely) collected, file was not properly saved. 1. Right click on variable in right-hand side of screen. 2. Save as SST_#_#.mat where first # is participant ID and second is session #. If you are still unsure what to do, contact your boss, Kim Martin, or Erik Knight (elk@uoregon.edu).')
 end
