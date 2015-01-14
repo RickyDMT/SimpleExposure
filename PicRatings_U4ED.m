@@ -3,12 +3,14 @@ function PicRatings_U4ED(varargin)
 
 global wRect w XCENTER rects mids COLORS KEYS PicRating_U4ED
 
-prompt={'SUBJECT ID'};
-defAns={'4444'};
+prompt={'SUBJECT ID' 'fMRI? (1 = Y, 0 = N)'};
+defAns={'4444' '0'};
 
 answer=inputdlg(prompt,'Please input subject info',1,defAns);
 
 ID=str2double(answer{1});
+fmri = str2double(answer{2});
+
 
 
 [mfilesdir,~,~] = fileparts(which('PicRatings_U4ED.m'));
@@ -41,10 +43,11 @@ KEYS.NINE= KbName('9(');
 KEYS.TEN= KbName('0)');
 rangetest = cell2mat(struct2cell(KEYS));
 KEYS.all = min(rangetest):max(rangetest);
+KEYS.trigger = 52;
 
 
 PICS =struct;
-    PICS.in.Un = dir('Unhealthy*');
+    PICS.in.Un = dir('Binge*');
 
     if isempty(PICS.in.Un);
         error('Could not find pics! Make sure a folder exists called "Pics" with all the appropriate images contained therein.')
@@ -54,9 +57,37 @@ PICS =struct;
     picnames = picnames(randperm(size(picnames,1)),:);
 
 
-PicRating_U4ED = struct('filename',picnames,'Rate_App',0); %,'Rate_Crave',0);
+jitter = BalanceTrials(length(picnames),1,[1 2 3]);
+
+PicRating_U4ED = struct('filename',picnames,'Rate_App',0,'Jitter',[],'FixOnset',[],'PicOnset',[],'RatingOnset',[],'RT',[]); %,'Rate_Crave',0);
+
+for hhh = 1:length(PicRating_U4ED);
+    
+    PicRating_U4ED(hhh).Jitter = jitter(hhh);
+end
 
 
+%% Keyboard stuff for fMRI...
+
+%list devices
+[keyboardIndices, productNames] = GetKeyboardIndices;
+
+isxkeys=strcmp(productNames,'Xkeys');
+
+xkeys=keyboardIndices(isxkeys);
+macbook = keyboardIndices(strcmp(productNames,'Apple Internal Keyboard / Trackpad'));
+
+%in case something goes wrong or the keyboard name isn?t exactly right
+if isempty(macbook)
+    macbook=-1;
+end
+
+%in case you?re not hooked up to the scanner, then just work off the keyboard
+if isempty(xkeys)
+    xkeys=macbook;
+end
+
+%%
 commandwindow;
 
 %%
@@ -103,18 +134,29 @@ Screen('TextSize',w,35);
 
 %% Dat Grid
 [rects,mids] = DrawRectsGrid();
-verbage = 'How appetizing is this food?'; %'How much do you crave this food?'};
+verbage = 'How much would you like to binge on this food?'; %'How much do you crave this food?'};
 
 %% Intro
 
-DrawFormattedText(w,'First, we are going to show you some pictures of food and have you rate how appetizing each food is.\n\n You will use a scale from 1 to 10, where 1 is the LEAST appetizing food you have ever eaten and 10 is the MOST appetizing food you have ever eaten.\n\nPress any key to continue.','center','center',COLORS.WHITE,50,[],[],1.5);
+DrawFormattedText(w,'We are going to show you some pictures of food and have you rate how much you would like to binge on each food.\n\n You will use a scale from 1 to 10, where 1 is "Not at all" and 10 is "Extremely."\n\nPress any key to continue.','center','center',COLORS.WHITE,50,[],[],1.5);
 Screen('Flip',w);
 KbWait([],3);
 
-DrawFormattedText(w,'You will use the numbers along the top of the keyboard to select your rating. \n\nPlease note that you will use the "0" key to select the number 10 (the most appetizing food you have ever eaten).\n\nPress any key to continue.','center','center',COLORS.WHITE,50,[],[],1.5);
+DrawFormattedText(w,'You will use the numbers along the top of the keyboard to select your rating. \n\nPlease note that you will use the "0" key to select the number 10.\n\nPress any key to continue.','center','center',COLORS.WHITE,50,[],[],1.5);
 Screen('Flip',w);
 KbWait([],3);
 
+%% fMRI synch w/trigger
+if fmri == 1;
+    DrawFormattedText(w,'Synching with fMRI: Waiting for trigger','center','center',COLORS.WHITE);
+    Screen('Flip',w);
+    
+    scan_sec = KbTriggerWait(KEYS.trigger,xkeys);
+else
+    scan_sec = GetSecs();
+end
+
+%%
 DrawFormattedText(w,'The rating task will now begin.\n\nPress any key to continue.','center','center',COLORS.WHITE,50,[],[],1.5);
 Screen('Flip',w);
 KbWait([],3);
@@ -127,18 +169,31 @@ for x = 1:20:length(PicRating_U4ED);  %UPDATE TO LENGTH OF GO PICS
         if xy > length(PicRating_U4ED)
             break
         end
-
-        tp = imread(getfield(PicRating_U4ED,{xy},'filename'));            
+        
+        DrawFormattedText(w,'+','center','center',COLORS.WHITE);
+        fixon = Screen('Flip',w);
+        PicRating_U4ED(xy).FixOnset = fixon - scan_sec;
+        WaitSecs(PicRating_U4ED(xy).Jitter);
+        
+        tp = imread(getfield(PicRating_U4ED,{xy},'filename'));
         tpx = Screen('MakeTexture',w,tp);          
+        Screen('DrawTexture',w,tpx);
+        picon = Screen('Flip',w);
+        PicRating_U4ED(xy).PicOnset = picon - scan_sec;
+        WaitSecs(5);
+        
         Screen('DrawTexture',w,tpx);
         drawRatings([],w);
         DrawFormattedText(w,verbage,'center',(wRect(4)*.75),COLORS.BLUE);
-        Screen('Flip',w);
+        rateon = Screen('Flip',w);
+        PicRating_U4ED(xy).RatingOnset = rateon - scan_sec;
             
         FlushEvents();
             while 1
-                [keyisdown, ~, keycode] = KbCheck();
+                [keyisdown, rt, keycode] = KbCheck();
                 if (keyisdown==1 && any(keycode(KEYS.all)))
+                    PicRating_U4ED(xy).RT = rt - rateon;
+                    
                     rating = KbName(find(keycode));
                     rating = str2double(rating(1));
                     
@@ -174,7 +229,7 @@ WaitSecs(.5);
 
 %% Sort & Save List of Foods.
 %Sort by top appetizing ratings for each set.
-fields = {'name' 'rating'};
+fields = {'name' 'rating' 'jitter' 'FixOnset' 'PicOnset' 'RatingOnset' 'RT'};
 presort = struct2cell(PicRating_U4ED)';
 postsort = sortrows(presort,-2);    %Sort descending by column 2
 PicRating_U4ED = cell2struct(postsort,fields,2);
