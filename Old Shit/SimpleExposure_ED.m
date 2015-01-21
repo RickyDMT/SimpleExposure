@@ -1,9 +1,11 @@
-function SimpleExposure(varargin)
+ function SimpleExposure_ED(varargin)
 
 global KEY COLORS w wRect XCENTER YCENTER PICS STIM SimpExp trial pahandle
 
-prompt={'SUBJECT ID'};
-defAns={'4444'};
+% This is for food & or model exposure!
+
+prompt={'SUBJECT ID' 'fMRI: 1 = Yes; 0 = No'};
+defAns={'4444' '1'};
 
 answer=inputdlg(prompt,'Please input subject info',1,defAns);
 
@@ -17,9 +19,7 @@ rng(ID); %Seed random number generator with subject ID
 d = clock;
 
 KEY = struct;
-KEY.rt = KbName('SPACE');
-KEY.left = KbName('c');
-KEY.right = KbName('m');
+KEY.trigger = KbName('''"');
 
 
 COLORS = struct;
@@ -35,17 +35,36 @@ STIM = struct;
 STIM.blocks = 6;
 STIM.trials = 10;
 STIM.totes = STIM.blocks*STIM.trials;
-STIM.trialdur = 5;
+STIM.trialdur = 4.5;
 STIM.jitter = [2 3 4];
 
+%% Keyboard stuff for fMRI...
+
+%list devices
+[keyboardIndices, productNames] = GetKeyboardIndices;
+
+isxkeys=strcmp(productNames,'Xkeys');
+
+xkeys=keyboardIndices(isxkeys);
+macbook = keyboardIndices(strcmp(productNames,'Apple Internal Keyboard / Trackpad'));
+
+%in case something goes wrong or the keyboard name isn?t exactly right
+if isempty(macbook)
+    macbook=-1;
+end
+
+%in case you?re not hooked up to the scanner, then just work off the keyboard
+if isempty(xkeys)
+    xkeys=macbook;
+end
 
 %% Find & load in pics
 %find the image directory by figuring out where the .m is kept
-[mdir,~,~] = fileparts(which('SimpleExposure.m'));
+[mdir,~,~] = fileparts(which('SimpleExposure_ED.m'));
 
-[ratedir,~,~] = fileparts(which('PicRatings_U4ED.m'));
-picratefolder = fullfile(ratedir,'Results');
-imgdir = fullfile(ratedir,'Pics');
+% [ratedir,~,~] = fileparts(which('SimpleExposure.m'));
+picratefolder = fullfile(mdir,'Ratings');   %XXX: Double check this is correct folder.
+imgdir = fullfile(mdir,'Pics');
 
 try
     cd(picratefolder)
@@ -65,7 +84,7 @@ catch
     if randopics == 1
         cd(imgdir)
         p = struct;
-        p.PicRating_U4ED = dir('Unhealthy*'); 
+        p.PicRating_U4ED.avg = dir('Average*'); 
 
     else
         error('Task cannot proceed without images. Contact Erik (elk@uoregon.edu) if you have continued problems.')
@@ -83,7 +102,7 @@ catch
     if randopics == 1
         cd(imgdir)
         p = struct;
-        p.PicRating_U4ED = dir('*_T*'); 
+        p.PicRating_U4ED.thin = dir('Thin*'); 
 
     else
         error('Task cannot proceed without images. Contact Erik (elk@uoregon.edu) if you have continued problems.')
@@ -97,7 +116,8 @@ cd(imgdir);
 
 PICS =struct;
 
-PICS.in.hi = struct('name',{p.PicRating_U4ED(1:80).name}');
+PICS.in.hi = struct('name',{p.PicRating_U4ED.avg(1:40).name}');
+PICS.in.lo = struct('name',{p.PicRating_U4ED.thin(1:40).name}');
 neutpics = dir('water*');
 
 %Check if pictures are present. If not, throw error.
@@ -111,11 +131,11 @@ SimpExp = struct;
 
 %1 = food, 0 = water
 % pictype = [ones(length(PICS.in.hi),1); zeros(20,1)];
-pictype = [ones(80,1); zeros(20,1)];
+pictype = [ones(40,1); repmat(2,40,1); zeros(20,1)];
 
 %Make long list of randomized #s to represent each pic
 % piclist = [randperm(length(PICS.in.hi))'; randperm(length(neutpics))'];
-piclist = [randperm(80)'; randperm(20)'];
+piclist = [randperm(40)'; randperm(40)'; randperm(20)'];
 
 
 %Concatenate these into a long list of trial types.
@@ -132,6 +152,8 @@ jitter = BalanceTrials(STIM.totes,1,STIM.jitter);
             SimpExp.data(tc).picname = PICS.in.hi(shuffled(tc,2)).name;
          elseif shuffled(tc,1) == 0
              SimpExp.data(tc).picname = neutpics(shuffled(tc,2)).name;
+         elseif shuffled(tc,1) == 2;
+             SimpExp.data(tc).picname = PICS.in.lo(shuffled(tc,2)).name;
          end
          SimpExp.data(tc).jitter = jitter(tc);
          SimpExp.data(tc).fix_onset = NaN;
@@ -194,6 +216,17 @@ KbName('UnifyKeyNames');
 %% Where should pics go
 % STIM.framerect = [XCENTER-300; YCENTER-300; XCENTER+300; YCENTER+300];
 
+%% fMRI Synch
+
+if fmri == 1;
+    DrawFormattedText(w,'Synching with fMRI: Waiting for trigger','center','center',COLORS.WHITE);
+    Screen('Flip',w);
+    
+    scan_sec = KbTriggerWait(KEY.trigger,xkeys);
+else
+    scan_sec = GetSecs();
+end
+
 %% Initial screen
 % DrawFormattedText(w,'Welcome to the Dot-Probe Task.\nPress any key to continue.','center','center',COLORS.WHITE,[],[],[],1.5);
 % Screen('Flip',w);
@@ -207,11 +240,13 @@ for block = 1:STIM.blocks
         texture = Screen('MakeTexture',w,tpx);
         
         DrawFormattedText(w,'+','center','center',COLORS.WHITE);
-        SimpExp.data(tcounter).fix_onset = Screen('Flip',w);
+        fixon = Screen('Flip',w);
+        SimpExp.data(tcounter).fix_onset = fixon - scan_sec;
         WaitSecs(SimpExp.data(tcounter).jitter);
         
         Screen('DrawTexture',w,texture);
-        SimpExp.data(tcounter).pic_onset = Screen('Flip',w);
+        picon = Screen('Flip',w);
+        SimpExp.data(tcounter).pic_onset = picon - scan_sec;
         WaitSecs(STIM.trialdur);
         
     end
