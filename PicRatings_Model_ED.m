@@ -44,13 +44,13 @@ KEYS.trigger = 52;
 imgdir = [mfilesdir filesep 'Pics'];
 cd(imgdir);
 PICS =struct;
-
-    %PICS.in.Un = dir('Binge*');
-
-    PICS.in.Un = dir('Th*');
-    PICS.in.H = dir('Av*');
+% 
+%     PICS.in.Un = dir('Th*');
+%     PICS.in.H = dir('Av*');
+    PICS.in.Un = dir('*_T*');
+    PICS.in.H = dir('*_H*');
     
-    if isempty(PICS.in.Un);
+    if isempty(PICS.in.Un) || isempty(PICS.in.H);
         error('Could not find pics! Make sure a folder exists called "Pics" with all the appropriate images contained therein.')
     end
     
@@ -61,14 +61,14 @@ PICS =struct;
     picnames = picnames(randperm(size(picnames,1)),:);
 
 
-jitter = BalanceTrials(length(picnames),1,[1 2 3]);
+% jitter = BalanceTrials(length(picnames),1,[1 2 3]);
 
-PicRating_U4ED = struct('filename',picnames(:,1),'PicType',picnames(:,2),'Rate_Att',0,'Jitter',[],'FixOnset',[],'PicOnset',[],'RatingOnset',[],'RT',[]); %,'Rate_Crave',0);
+PicRating_U4ED = struct('filename',picnames(:,1),'PicType',picnames(:,2),'Rate_Att',0); %,'Jitter',[],'FixOnset',[],'PicOnset',[],'RatingOnset',[],'RT',[]); %,'Rate_Crave',0);
 
-for hhh = 1:length(PicRating_U4ED);
-    
-    PicRating_U4ED(hhh).Jitter = jitter(hhh);
-end
+% for hhh = 1:length(PicRating_U4ED);
+%     
+%     PicRating_U4ED(hhh).Jitter = jitter(hhh);
+% end
 
 
 %% Keyboard stuff for fMRI...
@@ -175,30 +175,31 @@ for x = 1:20:length(PicRating_U4ED);  %UPDATE TO LENGTH OF GO PICS
             break
         end
         
-        DrawFormattedText(w,'+','center','center',COLORS.WHITE);
-        fixon = Screen('Flip',w);
-        PicRating_U4ED(xy).FixOnset = fixon - scan_sec;
-        WaitSecs(PicRating_U4ED(xy).Jitter);
+%         DrawFormattedText(w,'+','center','center',COLORS.WHITE);
+%         fixon = Screen('Flip',w);
+%         PicRating_U4ED(xy).FixOnset = fixon - scan_sec;
+%         WaitSecs(PicRating_U4ED(xy).Jitter);
         
         dat_pic = getfield(PicRating_U4ED,{xy},'filename');
         tp = imread(dat_pic);
         tpx = Screen('MakeTexture',w,tp);          
         Screen('DrawTexture',w,tpx);
-        picon = Screen('Flip',w);
-        PicRating_U4ED(xy).PicOnset = picon - scan_sec;
-        WaitSecs(5);
-        
-        Screen('DrawTexture',w,tpx);
+%         picon = Screen('Flip',w);
+%         PicRating_U4ED(xy).PicOnset = picon - scan_sec;
+%         WaitSecs(5);
+%         
+%         Screen('DrawTexture',w,tpx);
         drawRatings([],w);
         DrawFormattedText(w,verbage,'center',(wRect(4)*.75),COLORS.BLUE);
-        rateon = Screen('Flip',w);
-        PicRating_U4ED(xy).RatingOnset = rateon - scan_sec;
-            
+%         rateon = Screen('Flip',w);
+%         PicRating_U4ED(xy).RatingOnset = rateon - scan_sec;
+        Screen('Flip',w);
+        
         FlushEvents();
             while 1
                 [keyisdown, rt, keycode] = KbCheck();
                 if (keyisdown==1 && any(keycode(KEYS.all)))
-                    PicRating_U4ED(xy).RT = rt - rateon;
+%                     PicRating_U4ED(xy).RT = rt - rateon;
                     
                     rating = KbName(find(keycode));
                     rating = str2double(rating(1));
@@ -217,7 +218,7 @@ for x = 1:20:length(PicRating_U4ED);  %UPDATE TO LENGTH OF GO PICS
                 rating = 10;
             end
             
-            PicRating_U4ED(xy).Rate_App = rating;
+            PicRating_U4ED(xy).Rate_Att = rating;
            
            Screen('Flip',w);
            FlushEvents();
@@ -237,12 +238,12 @@ WaitSecs(.5);
 
 %% Sort & Save List of Foods.
 %Sort by top appetizing ratings for each set.
-fields = {'name' 'pictype' 'rating' 'jitter' 'FixOnset' 'PicOnset' 'RatingOnset' 'RT'};
+fields = {'name' 'pictype' 'rating'}; % 'jitter' 'FixOnset' 'PicOnset' 'RatingOnset' 'RT'};
 presort = struct2cell(PicRating_U4ED)';
 pre_H = presort(([presort{:,2}]==1),:);
 pre_U = presort(([presort{:,2}]==0),:);
-postsort_H = sortrows(pre_H,-2);    %Sort descending by column 2
-postsort_U = sortrows(pre_U,-2);
+postsort_H = sortrows(pre_H,-3);    %Sort descending by column 3
+postsort_U = sortrows(pre_U,-3);
 PicRating_Mod.Avg = cell2struct(postsort_H,fields,2);
 PicRating_Mod.Thin = cell2struct(postsort_U,fields,2);
 
@@ -251,11 +252,23 @@ savedir = [mfilesdir filesep 'Results'];
 savefilename = sprintf('PicRate_Mod%d.mat',ID);
 savefile = fullfile(savedir,savefilename);
 
+
+
 try
-    save(savefile,'PicRating_Mod'); 
+save(savefile,'PicRating_Mod');
 catch
-    error('Although data was (most likely) collected, file was not properly saved. 1. Right click on variable in right-hand side of screen. 2. Save as SST_#_#.mat where first # is participant ID and second is session #. If you are still unsure what to do, contact your boss, Kim Martin, or Erik Knight (elk@uoregon.edu).')
+    warning('Something is amiss with this save. Retrying to save in a more general location...');
+    try
+        save([mfilesdir filesep savefilename],'PicRating_Mod');
+    catch
+        warning('STILL problems saving....Try right-clicking on ''PicRating_Mod'' and Save as...');
+        PicRating_Mod
+    end
 end
+
+DrawFormattedText(w,'That concludes this task. The assessor will be with you soon.','center','center',COLORS.WHITE);
+Screen('Flip', w);
+WaitSecs(10);
 
 sca
 

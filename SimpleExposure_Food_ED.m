@@ -10,7 +10,7 @@ defAns={'4444' '1'};
 answer=inputdlg(prompt,'Please input subject info',1,defAns);
 
 ID=str2double(answer{1});
-fmri = str2doubl(answer{2});
+fmri = str2double(answer{2});
 % COND = str2double(answer{2});
 % SESS = str2double(answer{3});
 % prac = str2double(answer{4});
@@ -113,7 +113,8 @@ catch
         cd(imgdir)
         p = struct;
         p.PicRating_Food.H = dir('He*'); 
-        p.PicRating_Food.U = dir('Un*');
+%         p.PicRating_Food.U = dir('Un*');
+        p.PicRating_Food.U = dir('Binge*');
 
     else
         error('Task cannot proceed without images. Contact Erik (elk@uoregon.edu) if you have continued problems.')
@@ -230,7 +231,7 @@ KbName('UnifyKeyNames');
 
 %% Dat Grid
 [rects,mids] = DrawRectsGrid();
-verbage = 'How appetizing do you find this food?';
+verbage = 'How appetizing is this food?';
 
 %% fMRI Synch
 
@@ -244,7 +245,19 @@ else
 end
 
 %% Initial screend
+DrawFormattedText(w,'We are going to show you some pictures of food and have you rate how appetizing each food is.\n\n You will use a scale from 1 to 10, where 1 is "Not at all appetizing" and 10 is "Extremely appetizing."\n\nPress any key to continue.','center','center',COLORS.WHITE,50,[],[],1.5);
+Screen('Flip',w);
+KbWait([],3);
 
+DrawFormattedText(w,'Once the rating scale & words turn green, you will have one second to use the button boxes in your hands to select your rating.\n\n Choose the lowest rating (1), by pressing the button under your left pinky finger. Choose the highest rating (10) by pressing the button under your right pinky finger. \n\nPress any key to continue.','center','center',COLORS.WHITE,50,[],[],1.5);
+Screen('Flip',w);
+KbWait([],3);
+
+DrawFormattedText(w,'Press any key when you are ready to begin the task.','center','center',COLORS.WHITE,50,[],[],1.5);
+Screen('Flip',w);
+KbWait([],3);
+
+%% Trials
 
 for block = 1:STIM.blocks
     for trial = 1:STIM.trials
@@ -258,13 +271,15 @@ for block = 1:STIM.blocks
         WaitSecs(SimpExp.data(tcounter).jitter);
         
         Screen('DrawTexture',w,texture);
+        DrawFormattedText(w,verbage,'center',(wRect(4)*.75),COLORS.WHITE);
+        drawRatings([],w);
         picon = Screen('Flip',w);
         SimpExp.data(tcounter).pic_onset = picon - scan_sec;
         WaitSecs(STIM.trialdur - STIM.rate_dur);
         
         Screen('DrawTexture',w,texture);
-        drawRatings([],w);
-        DrawFormattedText(w,verbage,'center',(wRect(4)*.75),COLORS.WHITE);
+        drawRatings([],w,1); %The 1 here turns everything green.
+        DrawFormattedText(w,verbage,'center',(wRect(4)*.75),COLORS.GREEN);
         rateon = Screen('Flip',w);
         SimpExp.data(tcounter).rate_onset = rateon - scan_sec;
         
@@ -280,11 +295,11 @@ for block = 1:STIM.blocks
                 rating = KbName(find(keycode));
                 rating = str2double(rating(1));
                 
-%                 Screen('DrawTexture',w,texture);
-%                 drawRatings(keycode,w);
-%                 DrawFormattedText(w,verbage,'center',(wRect(4)*.75),COLORS.WHITE);
-%                 Screen('Flip',w);
-%                 WaitSecs(.25);
+                Screen('DrawTexture',w,texture);
+                drawRatings(keycode,w,1);
+                DrawFormattedText(w,verbage,'center',(wRect(4)*.75),COLORS.GREEN);
+                Screen('Flip',w);
+                WaitSecs(.25);
                 if fmri == 1;
                     rating = rating + 1;
                 elseif fmri == 0 && rating == 0
@@ -378,7 +393,17 @@ function drawRatings(varargin)
 
 global w KEYS COLORS rects mids
 
-colors=repmat(COLORS.WHITE',1,10);
+if nargin >= 3
+    ccc = varargin{3};
+    if ccc == 1;
+        colors=repmat(COLORS.GREEN',1,10);
+        wordcol = COLORS.GREEN;
+    end
+else
+    colors=repmat(COLORS.WHITE',1,10);
+    wordcol = COLORS.WHITE;
+end
+
 % rects=horzcat(allRects.rate1rect',allRects.rate2rect',allRects.rate3rect',allRects.rate4rect');
 
 %Needs to feed in "code" from KbCheck, to show which key was chosen.
@@ -417,7 +442,7 @@ if nargin >= 1 && ~isempty(varargin{1})
     if exist('choice','var')
         
         
-        colors(:,choice)=COLORS.GREEN';
+        colors(:,choice)=COLORS.BLUE';
         
     end
 end
@@ -447,7 +472,7 @@ Screen('FrameRect',window,colors,rects,1);
 %draw the text (1-10)
 for n = 1:10;
     numnum = sprintf('%d',n);
-    CenterTextOnPoint(window,numnum,mids(1,n),mids(2,n),COLORS.BLUE);
+    CenterTextOnPoint(window,numnum,mids(1,n),mids(2,n),wordcol);
 end
 
 
