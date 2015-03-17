@@ -376,7 +376,15 @@ end
 
 DrawFormattedText(w,'That concludes this task.','center','center',COLORS.WHITE);
 Screen('Flip', w);
-WaitSecs(10);
+% WaitSecs(10);
+FlushEvents();
+while 1
+    [pracDown, ~, pracCode] = KbCheck(); %waits for R or L index button to be pressed
+    if pracDown == 1 && any(pracCode(KEY.all))
+        break
+    end
+end
+
 
 sca
 
