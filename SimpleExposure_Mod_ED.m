@@ -30,7 +30,7 @@ if fmri == 1;
     KEYS.SEVEN= KbName('6^');
     KEYS.EIGHT= KbName('7&');
     KEYS.NINE= KbName('8*');
-    KEYS.TEN= KbName('9(');
+%     KEYS.TEN= KbName('9(');
 else
     KEYS.ONE= KbName('1!');
     KEYS.TWO= KbName('2@');
@@ -41,12 +41,13 @@ else
     KEYS.SEVEN= KbName('7&');
     KEYS.EIGHT= KbName('8*');
     KEYS.NINE= KbName('9(');
-    KEYS.TEN= KbName('0)');
+%     KEYS.TEN= KbName('0)');
 end
 
 rangetest = cell2mat(struct2cell(KEYS));
 KEYS.all = min(rangetest):max(rangetest);
-KEYS.trigger = KbName('''"');
+% KEYS.trigger = KbName('''"');
+KEYS.trigger = KbName('''');
 
 
 COLORS = struct;
@@ -226,7 +227,7 @@ Screen('TextSize',w,30);
 KbName('UnifyKeyNames');
 
 %% Where should pics go
-% STIM.framerect = [XCENTER-300; YCENTER-300; XCENTER+300; YCENTER+300];
+STIM.framerect = [XCENTER-125; wRect(4)*.1; XCENTER+125; (wRect(4)*.1)+450];
 
 %% Dat Grid
 [rects,mids] = DrawRectsGrid();
@@ -246,15 +247,44 @@ end
 %% Initial screend
 DrawFormattedText(w,'We are going to show you some pictures of people and have you rate how attractive each person is.\n\n You will use a scale from 1 to 10, where 1 is "Not at all attractive" and 10 is "Extremely attractive."\n\nPress any key to continue.','center','center',COLORS.WHITE,50,[],[],1.5);
 Screen('Flip',w);
-KbWait([],3);
+% KbWait([],3);
+FlushEvents();
+while 1
+    [pracDown, ~, pracCode] = KbCheck(); %waits for R or L index button to be pressed
+    if pracDown == 1 && any(pracCode(KEYS.all))
+        break
+    end
+end
+Screen('Flip',w);
+WaitSecs(1);
+
 
 DrawFormattedText(w,'Once the rating scale & words turn green, you will have one second to use the button boxes in your hands to select your rating.\n\n Choose the lowest rating (1), by pressing the button under your left pinky finger. Choose the highest rating (10) by pressing the button under your right pinky finger. \n\nPress any key to continue.','center','center',COLORS.WHITE,50,[],[],1.5);
 Screen('Flip',w);
-KbWait([],3);
+% KbWait([],3);
+FlushEvents();
+while 1
+    [pracDown, ~, pracCode] = KbCheck(); %waits for R or L index button to be pressed
+    if pracDown == 1 && any(pracCode(KEYS.all))
+        break
+    end
+end
+Screen('Flip',w);
+WaitSecs(1);
 
 DrawFormattedText(w,'Press any key when you are ready to begin the task.','center','center',COLORS.WHITE,50,[],[],1.5);
 Screen('Flip',w);
-KbWait([],3);
+% KbWait([],3);
+FlushEvents();
+while 1
+    [pracDown, ~, pracCode] = KbCheck(); %waits for R or L index button to be pressed
+    if pracDown == 1 && any(pracCode(KEYS.all))
+        break
+    end
+end
+Screen('Flip',w);
+WaitSecs(1);
+
 
 %% Trials
 
@@ -269,14 +299,14 @@ for block = 1:STIM.blocks
         SimpExp.data(tcounter).fix_onset = fixon - scan_sec;
         WaitSecs(SimpExp.data(tcounter).jitter);
         
-        Screen('DrawTexture',w,texture);
+        Screen('DrawTexture',w,texture,[],STIM.framerect);
         DrawFormattedText(w,verbage,'center',(wRect(4)*.75),COLORS.WHITE);
         drawRatings([],w);
         picon = Screen('Flip',w);
         SimpExp.data(tcounter).pic_onset = picon - scan_sec;
         WaitSecs(STIM.trialdur - STIM.rate_dur);
         
-        Screen('DrawTexture',w,texture);
+        Screen('DrawTexture',w,texture,[],STIM.framerect);
         drawRatings([],w,1);
         DrawFormattedText(w,verbage,'center',(wRect(4)*.75),COLORS.GREEN);
         rateon = Screen('Flip',w);
@@ -294,7 +324,7 @@ for block = 1:STIM.blocks
                 rating = KbName(find(keycode));
                 rating = str2double(rating(1));
                 
-                Screen('DrawTexture',w,texture);
+                Screen('DrawTexture',w,texture,[],STIM.framerect);
                 drawRatings(keycode,w,1);
                 DrawFormattedText(w,verbage,'center',(wRect(4)*.75),COLORS.GREEN);
                 Screen('Flip',w);
@@ -364,7 +394,7 @@ global wRect XCENTER
 %of screen is determined. Then, images are 1/4th the side of that square
 %(minus the 3 x the gap between images.
 
-num_rects = 10;                 %How many rects?
+num_rects = 9;                 %How many rects?
 xlen = wRect(3)*.9;           %Make area covering about 90% of vertical dimension of screen.
 gap = 10;                       %Gap size between each rect
 square_side = fix((xlen - (num_rects-1)*gap)/num_rects); %Size of rect depends on size of screen.
@@ -372,10 +402,10 @@ square_side = fix((xlen - (num_rects-1)*gap)/num_rects); %Size of rect depends o
 squart_x = XCENTER-(xlen/2);
 squart_y = wRect(4)*.8;         %Rects start @~80% down screen.
 
-rects = zeros(4,10);
+rects = zeros(4,9);
 
 % for row = 1:DIMS.grid_row;
-    for col = 1:10;
+    for col = 1:9;
 %         currr = ((row-1)*DIMS.grid_col)+col;
         rects(1,col)= squart_x + (col-1)*(square_side+gap);
         rects(2,col)= squart_y;
@@ -395,11 +425,11 @@ global w KEYS COLORS rects mids
 if nargin >= 3
     ccc = varargin{3};
     if ccc == 1;
-        colors=repmat(COLORS.GREEN',1,10);
+        colors=repmat(COLORS.GREEN',1,9);
         wordcol = COLORS.GREEN;
     end
 else
-    colors=repmat(COLORS.WHITE',1,10);
+    colors=repmat(COLORS.WHITE',1,9);
     wordcol = COLORS.WHITE;
 end
 % rects=horzcat(allRects.rate1rect',allRects.rate2rect',allRects.rate3rect',allRects.rate4rect');
@@ -433,8 +463,8 @@ if nargin >= 1 && ~isempty(varargin{1})
             choice=8;
         case {KEYS.NINE}
             choice=9;
-        case {KEYS.TEN}
-            choice = 10;
+%         case {KEYS.TEN}
+%             choice = 10;
     end
     
     if exist('choice','var')
@@ -468,7 +498,7 @@ Screen('FrameRect',window,colors,rects,1);
 
 
 %draw the text (1-10)
-for n = 1:10;
+for n = 1:9;
     numnum = sprintf('%d',n);
     CenterTextOnPoint(window,numnum,mids(1,n),mids(2,n),wordcol);
 end
