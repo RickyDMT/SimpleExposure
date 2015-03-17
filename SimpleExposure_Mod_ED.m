@@ -46,8 +46,8 @@ end
 
 rangetest = cell2mat(struct2cell(KEYS));
 KEYS.all = min(rangetest):max(rangetest);
-% KEYS.trigger = KbName('''"');
-KEYS.trigger = KbName('''');
+% KEYS.trigger = KbName('''"'); %For Mac
+KEYS.trigger = KbName('''');    %For PC
 
 
 COLORS = struct;
@@ -245,7 +245,7 @@ else
 end
 
 %% Initial screend
-DrawFormattedText(w,'We are going to show you some pictures of people and have you rate how attractive each person is.\n\n You will use a scale from 1 to 10, where 1 is "Not at all attractive" and 10 is "Extremely attractive."\n\nPress any key to continue.','center','center',COLORS.WHITE,50,[],[],1.5);
+DrawFormattedText(w,'We are going to show you some pictures of people and have you rate how attractive each person is.\n\n You will use a scale from 1 to 9, where 1 is "Not at all attractive" and 9 is "Extremely attractive."\n\nPress any key to continue.','center','center',COLORS.WHITE,50,[],[],1.5);
 Screen('Flip',w);
 % KbWait([],3);
 FlushEvents();
@@ -259,7 +259,7 @@ Screen('Flip',w);
 WaitSecs(1);
 
 
-DrawFormattedText(w,'Once the rating scale & words turn green, you will have one second to use the button boxes in your hands to select your rating.\n\n Choose the lowest rating (1), by pressing the button under your left pinky finger. Choose the highest rating (10) by pressing the button under your right pinky finger. \n\nPress any key to continue.','center','center',COLORS.WHITE,50,[],[],1.5);
+DrawFormattedText(w,'Once the rating scale & words turn green, you will have one second to use the button boxes in your hands to select your rating.\n\n Choose the lowest rating (1), by pressing the button under your left pinky finger. Choose the highest rating (9) by pressing the button under your right ring finger. \n\nPress any key to continue.','center','center',COLORS.WHITE,50,[],[],1.5);
 Screen('Flip',w);
 % KbWait([],3);
 FlushEvents();
