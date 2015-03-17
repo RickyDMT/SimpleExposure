@@ -45,7 +45,8 @@ else
 end
 
 rangetest = cell2mat(struct2cell(KEYS));
-KEYS.all = min(rangetest):max(rangetest);
+% KEYS.all = min(rangetest):max(rangetest);
+KEYS.all = rangetest;
 % KEYS.trigger = KbName('''"'); %For MAC
 KEYS.trigger = KbName('''');    %For PC
 
